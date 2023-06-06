@@ -13,6 +13,11 @@ rs.login(username=robin_user,
 def get_tickers():
     tickers = rs.get_top_100()
     stocks = []
+    for number in range(len(tickers)):
+        for element in tickers[0]:
+            if element == "symbol":
+                tickers.append(tickers[number][element])
+    return stocks
 
 def get_user_stocks(ticker_list):
     with open("ticker_list", 'r') as read:
