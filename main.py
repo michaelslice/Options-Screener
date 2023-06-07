@@ -1,5 +1,5 @@
 import robin_stocks.robinhood as rs
-import os 
+import os
 import sys
 
 # Login to Robinhood account
@@ -26,8 +26,8 @@ def get_tickers_stocks(file_name):
     with open(file_name, 'r') as read:
         user_stocks = read.readlines()
         for i in range(len(user_stocks)):
-            user_stocks[i] = user_stocks[i].strip("\i")
-        return user_stocks 
+            user_stocks[i] = user_stocks[i].strip("\n")
+        return user_stocks
 
 # Filter tickers by user desired price
 def filter_ticker_by_price(stocks, price_to_filter):
@@ -40,50 +40,66 @@ def filter_ticker_by_price(stocks, price_to_filter):
                 stocks_under_price[local_stock] = new_stock["last_trade_price"]
     return stocks_under_price
 
-list_or_pull = input("Do you want to get the top 100 from Robinhood or pull stocks from a file? (1 for Robinhood, 2 for pulling stocks from a file): ")
+# Function to calculate percent win
+def calculate_percent_win(option_price, cash_required):
+    percent_win = (option_price / cash_required) * 100
+    return percent_win
 
-if list_or_pull == "1":
-    top_stocks = get_tickers()
-elif list_or_pull == "2":
-    file_name = input("Enter the file name containing the stocks: ")
-    top_stocks = get_tickers_stocks(file_name)
-else:
-    print("Invalid choice.")
-    sys.exit(1)
+# Function to calculate probability of losing
+def calculate_probability_lose(delta):
+    probability_lose = delta * 100
+    return probability_lose
+
+list_or_pull = input("Do you want to get the top 100 from Robinhood or pull stocks from a file? (1 for Robinhood, 2 for pulling stocks from a file): ")
 
 expiration_date = input("Enter an expiration date for the option contract (YYYY-MM-DD format): ")
 calls_or_puts = input("Enter 1 for calls or 2 for puts: ")
 strike_price = float(input("Enter the desired strike price: "))
 
-# Find high probability trades for option premium
-high_probability_trades = []
-for stock in top_stocks:
-    option_quotes = rs.find_options_by_expiration_and_strike(stock, expiration_date, strike_price)
-    if calls_or_puts == "1":
-        # Filter for calls
-        calls = [quote for quote in option_quotes if quote['type'] == 'call']
-        for call in calls:
-            if call['premium'] > 0.5:  # Adjust premium threshold as desired
-                high_probability_trades.append({
-                    'stock': stock,
-                    'option_type': 'Call',
-                    'expiration_date': expiration_date,
-                    'strike_price': call['strike_price'],
-                    'premium': call['premium']
-                })
-    elif calls_or_puts == "2":
-        # Filter for puts
-        puts = [quote for quote in option_quotes if quote['type'] == 'put']
-        for put in puts:
-            if put['premium'] > 0.5:  # Adjust premium threshold as desired
-                high_probability_trades.append({
-                    'stock': stock,
-                    'option_type': 'Put',
-                    'expiration_date': expiration_date,
-                    'strike_price': put['strike_price'],
-                    'premium': put['premium']
-                })
+if list_or_pull == "1":
+    tickers = get_tickers()
+elif list_or_pull == "2":
+    file_name = input("Enter the file name containing the desired stocks: ")
+    tickers = get_tickers_stocks(file_name)
+else:
+    sys.exit("Invalid choice. Exiting...")
 
-# Print high probability trades
-for trade in high_probability_trades:
-    print(trade)
+for ticker in tickers:
+    if calls_or_puts == "1":
+        option_type = "call"
+    elif calls_or_puts == "2":
+        option_type = "put"
+    else:
+        sys.exit("Invalid choice. Exiting...")
+    
+    options = rs.find_options_by_expiration(ticker, expirationDate=expiration_date, optionType=option_type)
+    
+    for option in options:
+        option_symbol = option['symbol']
+        option_price = option['last_trade_price']
+        option_strike_price = option['strike_price']
+        option_contract_price_per_share = option['ask_price']
+        stock_price = rs.stocks.get_latest_price(ticker, includeExtendedHours=False)[0]
+        
+        # Calculate cash required for 100 shares or securing a put
+        if option_type == "call":
+            cash_required = option_strike_price * 100
+        else:
+            cash_required = option_price * 100
+        
+        # Calculate percent win
+        percent_win = calculate_percent_win(option_price, cash_required)
+        
+       
+                # Calculate delta and probability of losing
+        delta = float(option['delta'])
+        probability_lose = calculate_probability_lose(delta)
+        
+        # Print the information
+        print("Option Symbol:", option_symbol)
+        print("Strike Price:", option_strike_price)
+        print("Option Contract Price per Share:", option_contract_price_per_share)
+        print("Stock Price:", stock_price)
+        print("Percent Win:", percent_win)
+        print("Probability of Losing:", probability_lose)
+        print("------------------------")
