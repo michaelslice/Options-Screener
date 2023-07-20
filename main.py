@@ -1,6 +1,8 @@
 import robin_stocks.robinhood as rs
 import os
 import sys
+import re
+
 
 # Login to Robinhood account
 robin_user = os.environ.get("robinhood_username")
@@ -29,19 +31,37 @@ def get_tickers_stocks(file_name):
             user_stocks[i] = user_stocks[i].strip("\n")
         return user_stocks
 
-# Filter tickers by user desired price
 def filter_ticker_by_price(stocks, price_to_filter):
     stocks_under_price = {}
     for stock in stocks:
         new_stocks = rs.get_quotes([stock])
         for new_stock in new_stocks:
-            if float(new_stock["last_trade_price"]) <= price_to_filter:
+            last_trade_price = new_stock["last_trade_price"]
+            print("Last trade price for", stock, ":", last_trade_price)  # Debug print
+
+            try:
+                # Convert the last_trade_price to float
+                last_trade_price = float(last_trade_price)
+            except ValueError:
+                
+                continue
+
+            if last_trade_price <= price_to_filter:
                 local_stock = new_stock["symbol"]
-                stocks_under_price[local_stock] = new_stock["last_trade_price"]
+                stocks_under_price[local_stock] = last_trade_price
     return stocks_under_price
 
-# Function to calculate percent win
 def calculate_percent_win(option_price, cash_required):
+
+    print("Before conversion - option_price:", option_price, "cash_required:", cash_required)
+    option_price = float(option_price)
+    cash_required = float(cash_required)
+
+    # Check if cash_required is zero to avoid division by zero
+    if cash_required == 0:
+        # Assign a default value (e.g., 1) to avoid division by zero
+        cash_required = 1
+
     percent_win = (option_price / cash_required) * 100
     return percent_win
 
@@ -74,32 +94,39 @@ for ticker in tickers:
     
     options = rs.find_options_by_expiration(ticker, expirationDate=expiration_date, optionType=option_type)
     
-    for option in options:
-        option_symbol = option['symbol']
-        option_price = option['last_trade_price']
-        option_strike_price = option['strike_price']
-        option_contract_price_per_share = option['ask_price']
-        stock_price = rs.stocks.get_latest_price(ticker, includeExtendedHours=False)[0]
-        
-        # Calculate cash required for 100 shares or securing a put
-        if option_type == "call":
-            cash_required = option_strike_price * 100
-        else:
-            cash_required = option_price * 100
-        
-        # Calculate percent win
-        percent_win = calculate_percent_win(option_price, cash_required)
-        
-       
-                # Calculate delta and probability of losing
-        delta = float(option['delta'])
-        probability_lose = calculate_probability_lose(delta)
-        
-        # Print the information
-        print("Option Symbol:", option_symbol)
-        print("Strike Price:", option_strike_price)
-        print("Option Contract Price per Share:", option_contract_price_per_share)
-        print("Stock Price:", stock_price)
-        print("Percent Win:", percent_win)
-        print("Probability of Losing:", probability_lose)
-        print("------------------------")
+for option in options:
+    option_symbol = option['symbol']
+    option_price = option['last_trade_price']
+    option_strike_price = option['strike_price']
+    option_contract_price_per_share = option['ask_price']
+    stock_price = rs.stocks.get_latest_price(ticker, includeExtendedHours=False)[0]
+
+    if option_price is None or option_strike_price is None or option['delta'] is None:
+        # Skip this option as 'last_trade_price', 'strike_price', or 'delta' is missing
+        continue
+
+    # Convert to float
+    option_price = float(option_price)
+    option_strike_price = float(option_strike_price)
+    delta = float(option['delta'])
+
+    # Calculate cash required for 100 shares or securing a put
+    if option_type == "call":
+        cash_required = option_strike_price * 100
+    else:
+        cash_required = option_price * 100
+
+    # Calculate percent win
+    percent_win = calculate_percent_win(option_price, cash_required)
+
+    # Calculate probability of losing
+    probability_lose = calculate_probability_lose(delta)
+
+    # Print the information
+    print("Option Symbol:", option_symbol)
+    print("Strike Price:", option_strike_price)
+    print("Option Contract Price per Share:", option_contract_price_per_share)
+    print("Stock Price:", stock_price)
+    print("Percent Win:", percent_win)
+    print("Probability of Losing:", probability_lose)
+    print("------------------------")
