@@ -25,7 +25,7 @@ After typing in your username and password you will be asked if you want to sear
 
 After deciding where to pull tickers from, you will be prompted for a desired expiration date for the options contract. You must enter a valid expiration date, if you are not sure check the Robinhood website. 
 
-![image](https://github.com/michaelslice/Options-Screener/assets/110714088/3280ff31-7cdb-4fd8-9daf-f733141043f4)
+![image](https://github.com/michaelslice/Options-Screener/assets/110714088/f2be824b-9466-496e-a6af-af2384f92ca1)
 
 ## Calls or Puts
 
